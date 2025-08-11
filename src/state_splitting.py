@@ -297,8 +297,8 @@ def run_adaptive_state_growth(past_probabilities,
     
     # Process each β value
     for beta_index, beta in enumerate(beta_schedule):
-        # Run EM to convergence for current β
-        posterior_distribution, emission_probabilities, free_energy, complexity, accuracy = run_em_coordinate_ascent(
+        # Run EM to convergence for current β  
+        posterior_distribution, emission_probabilities, free_energy, complexity, accuracy, energy, entropy = run_em_coordinate_ascent(
             past_probabilities,
             future_conditional_probabilities,
             beta,

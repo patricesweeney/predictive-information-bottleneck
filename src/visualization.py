@@ -9,7 +9,7 @@ logic and visualization concerns.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 import os
 
 # Apply custom style using the centralized style configuration
@@ -75,10 +75,10 @@ class InformationBottleneckVisualizer:
         for process_name, result in results.items():
             complexities = result['complexities']
             accuracies = result['accuracies']
-            ax.plot(complexities, accuracies, 'o-', label=process_name, alpha=0.8, linewidth=2)
+            ax.plot(complexities, accuracies, 'o-', label=process_name, alpha=0.8)
         
-        ax.set_xlabel('Complexity I(X;Z)')
-        ax.set_ylabel('Accuracy I(Z;Y)')
+        ax.set_xlabel(r'Complexity $I(X;Z)$')
+        ax.set_ylabel(r'Accuracy $I(Z;Y)$')
         ax.set_title(title)
         ax.legend()
 
@@ -129,39 +129,39 @@ class InformationBottleneckVisualizer:
             entropies = result['entropies']
             
             # Plot accuracy/complexity decomposition
-            acc_ax.semilogx(beta_values, accuracies, 'o-', label=process_name, alpha=0.8, linewidth=2)
-            comp_ax.semilogx(beta_values, complexities, 'o-', label=process_name, alpha=0.8, linewidth=2)
+            acc_ax.semilogx(beta_values, accuracies, 'o-', label=process_name, alpha=0.8)
+            comp_ax.semilogx(beta_values, complexities, 'o-', label=process_name, alpha=0.8)
             
             # Plot energy/entropy decomposition
-            energy_ax.semilogx(beta_values, energies, 'o-', label=process_name, alpha=0.8, linewidth=2)
-            entropy_ax.semilogx(beta_values, entropies, 'o-', label=process_name, alpha=0.8, linewidth=2)
+            energy_ax.semilogx(beta_values, energies, 'o-', label=process_name, alpha=0.8)
+            entropy_ax.semilogx(beta_values, entropies, 'o-', label=process_name, alpha=0.8)
         
         # Style accuracy plot
-        acc_ax.set_title('Accuracy: E[log P(future|state)]')
-        acc_ax.set_ylabel('Accuracy')
+        acc_ax.set_title(r'Accuracy: $\mathbb{E}[\log P(\text{future}|\text{state})]$')
+        acc_ax.set_ylabel(r'Accuracy $I(Z;Y)$')
         acc_ax.legend()
 
 
         
         # Style complexity plot
-        comp_ax.set_title('Complexity: I(Past; State)')
-        comp_ax.set_ylabel('Complexity')
+        comp_ax.set_title(r'Complexity: $I(\text{Past}; \text{State})$')
+        comp_ax.set_ylabel(r'Complexity $I(X;Z)$')
         comp_ax.legend()
 
 
         
         # Style energy plot
-        energy_ax.set_title('Energy: -E[log P(past, future)]')
-        energy_ax.set_xlabel('Inverse Temperature β')
-        energy_ax.set_ylabel('Energy')
+        energy_ax.set_title(r'Energy: $-\mathbb{E}[\log P(\text{past}, \text{future})]$')
+        energy_ax.set_xlabel(r'Inverse Temperature $\beta$')
+        energy_ax.set_ylabel(r'Energy')
         energy_ax.legend()
 
 
         
         # Style entropy plot
-        entropy_ax.set_title('Entropy: H[q(state|past)]')
-        entropy_ax.set_xlabel('Inverse Temperature β')
-        entropy_ax.set_ylabel('Entropy')
+        entropy_ax.set_title(r'Entropy: $H[q(\text{state}|\text{past})]$')
+        entropy_ax.set_xlabel(r'Inverse Temperature $\beta$')
+        entropy_ax.set_ylabel(r'Entropy')
         entropy_ax.legend()
 
 
@@ -196,17 +196,17 @@ class InformationBottleneckVisualizer:
             num_states = result['num_states']
             free_energies = result['free_energies']
             
-            ax1.semilogx(beta_values, num_states, 'o-', label=process_name, alpha=0.8, linewidth=2)
-            ax2.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8, linewidth=2)
+            ax1.semilogx(beta_values, num_states, 'o-', label=process_name, alpha=0.8)
+            ax2.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8)
         
-        ax1.set_ylabel('Number of States')
+        ax1.set_ylabel(r'Number of States')
         ax1.set_title(title)
         ax1.legend()
 
 
         
-        ax2.set_xlabel('Inverse Temperature β')
-        ax2.set_ylabel('Free Energy')
+        ax2.set_xlabel(r'Inverse Temperature $\beta$')
+        ax2.set_ylabel(r'Free Energy')
         ax2.legend()
 
 
@@ -237,10 +237,10 @@ class InformationBottleneckVisualizer:
         for process_name, result in results.items():
             beta_values = result['beta_values']
             free_energies = result['free_energies']
-            ax.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8, linewidth=2)
+            ax.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8)
         
-        ax.set_xlabel('Inverse Temperature β')
-        ax.set_ylabel('Free Energy')
+        ax.set_xlabel(r'Inverse Temperature $\beta$')
+        ax.set_ylabel(r'Free Energy')
         ax.set_title(title)
         ax.legend()
 
@@ -273,7 +273,7 @@ class InformationBottleneckVisualizer:
         time_steps = results['time_steps']
         
         # Free energy over time
-        ax1.plot(time_steps, results['free_energies'], 'b-', linewidth=2)
+        ax1.plot(time_steps, results['free_energies'], 'b-')
         ax1.set_xlabel('Time Step')
         ax1.set_ylabel('Free Energy')
         ax1.set_title('Free Energy Evolution')
@@ -281,9 +281,9 @@ class InformationBottleneckVisualizer:
 
         
         # Number of states over time
-        ax2.plot(time_steps, results['state_counts'], 'g-', linewidth=2)
+        ax2.plot(time_steps, results['state_counts'], 'g-')
         for split_time in results['split_times']:
-            ax2.axvline(split_time, color='red', alpha=0.7, linestyle='--', linewidth=1)
+            ax2.axvline(split_time, color='red', alpha=0.7, linestyle='--')
         ax2.set_xlabel('Time Step')
         ax2.set_ylabel('Number of States')
         ax2.set_title('State Growth (red lines = splits)')
@@ -291,7 +291,7 @@ class InformationBottleneckVisualizer:
 
         
         # Complexity over time
-        ax3.plot(time_steps, results['complexities'], 'orange', linewidth=2)
+        ax3.plot(time_steps, results['complexities'], 'orange')
         ax3.set_xlabel('Time Step')
         ax3.set_ylabel('Complexity')
         ax3.set_title('Model Complexity')
@@ -299,7 +299,7 @@ class InformationBottleneckVisualizer:
 
         
         # Accuracy over time
-        ax4.plot(time_steps, results['accuracies'], 'purple', linewidth=2)
+        ax4.plot(time_steps, results['accuracies'], 'purple')
         ax4.set_xlabel('Time Step')
         ax4.set_ylabel('Accuracy')
         ax4.set_title('Prediction Accuracy')
@@ -419,8 +419,8 @@ class InformationBottleneckVisualizer:
             accuracies = result['accuracies']
             ax.plot(complexities, accuracies, 'o-', label=process_name, alpha=0.8)
         
-        ax.set_xlabel('Complexity I(X;Z)')
-        ax.set_ylabel('Accuracy I(Z;Y)')
+        ax.set_xlabel(r'Complexity $I(X;Z)$')
+        ax.set_ylabel(r'Accuracy $I(Z;Y)$')
         ax.set_title('Information Bottleneck Trade-off')
         ax.legend()
 
@@ -432,8 +432,8 @@ class InformationBottleneckVisualizer:
             num_states = result['num_states']
             ax.semilogx(beta_values, num_states, 'o-', label=process_name, alpha=0.8)
         
-        ax.set_xlabel('Inverse Temperature β')
-        ax.set_ylabel('Number of States')
+        ax.set_xlabel(r'Inverse Temperature $\beta$')
+        ax.set_ylabel(r'Number of States')
         ax.set_title('Phase Transitions')
         ax.legend()
 
@@ -445,8 +445,8 @@ class InformationBottleneckVisualizer:
             free_energies = result['free_energies']
             ax.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8)
         
-        ax.set_xlabel('Inverse Temperature β')
-        ax.set_ylabel('Free Energy')
+        ax.set_xlabel(r'Inverse Temperature $\beta$')
+        ax.set_ylabel(r'Free Energy')
         ax.set_title('Free Energy Evolution')
         ax.legend()
 
@@ -454,7 +454,7 @@ class InformationBottleneckVisualizer:
     def _plot_online_free_energy_on_axis(self, results: Dict[str, Any], ax: plt.Axes):
         """Helper method to plot online free energy on given axis."""
         time_steps = results['time_steps']
-        ax.plot(time_steps, results['free_energies'], 'b-', linewidth=2)
+        ax.plot(time_steps, results['free_energies'], 'b-')
         ax.set_xlabel('Time Step')
         ax.set_ylabel('Free Energy')
         ax.set_title('Online Free Energy')
@@ -463,7 +463,7 @@ class InformationBottleneckVisualizer:
     def _plot_online_states_on_axis(self, results: Dict[str, Any], ax: plt.Axes):
         """Helper method to plot online state growth on given axis."""
         time_steps = results['time_steps']
-        ax.plot(time_steps, results['state_counts'], 'g-', linewidth=2)
+        ax.plot(time_steps, results['state_counts'], 'g-')
         for split_time in results['split_times']:
             ax.axvline(split_time, color='red', alpha=0.7, linestyle='--')
         ax.set_xlabel('Time Step')
@@ -476,8 +476,8 @@ class InformationBottleneckVisualizer:
         process_names = list(results.keys())
         final_complexities = [results[name]['complexities'][-1] for name in process_names]
         
-        bars = ax.bar(process_names, final_complexities, alpha=0.7)
-        ax.set_ylabel('Final Complexity (bits)')
+        ax.bar(process_names, final_complexities, alpha=0.7)
+        ax.set_ylabel(r'Final Complexity (bits)')
         ax.set_title('Process Complexity Comparison')
 
         

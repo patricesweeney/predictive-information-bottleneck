@@ -37,17 +37,17 @@ def main():
     z = np.polyfit(x, y, 1)
     p = np.poly1d(z)
     x_trend = np.linspace(x.min(), x.max(), 50)
-    ax1.plot(x_trend, p(x_trend), '--', alpha=0.8, linewidth=1.5)
+    ax1.plot(x_trend, p(x_trend), '--', alpha=0.8)
     
     # CDF plot
     # Empirical CDF
     sorted_data = np.sort(data)
     y_empirical = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
-    ax2.plot(sorted_data, y_empirical, label='Empirical CDF', linewidth=1.2)
+    ax2.plot(sorted_data, y_empirical, label='Empirical CDF')
     
     # Theoretical Gamma CDF
     theoretical_cdf = stats.gamma.cdf(x_cdf, 2, scale=2)
-    ax2.plot(x_cdf, theoretical_cdf, label=r'Theoretical $\Gamma(2,2)$', linewidth=1.2)
+    ax2.plot(x_cdf, theoretical_cdf, label=r'Theoretical $\Gamma(2,2)$')
     
     ax2.set_xlabel(r'$x$')
     ax2.set_ylabel(r'$F(x) = P(X \leq x)$')
