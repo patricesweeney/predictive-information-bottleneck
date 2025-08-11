@@ -10,6 +10,18 @@ logic and visualization concerns.
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Optional, Tuple, Any
+import os
+
+# Apply custom style using the centralized style configuration
+try:
+    from .style_config import apply_project_style
+    apply_project_style()
+except ImportError:
+    # Fallback for direct execution or when style_config is not available
+    import os
+    style_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'styles', 'pat_minimal.mplstyle')
+    if os.path.exists(style_path):
+        plt.style.use(style_path)
 
 
 class InformationBottleneckVisualizer:
@@ -65,15 +77,13 @@ class InformationBottleneckVisualizer:
             accuracies = result['accuracies']
             ax.plot(complexities, accuracies, 'o-', label=process_name, alpha=0.8, linewidth=2)
         
-        ax.set_xlabel('Complexity I(X;Z)', fontsize=12)
-        ax.set_ylabel('Accuracy I(Z;Y)', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
-        ax.legend(fontsize=10)
-        ax.grid(True, alpha=0.3)
+        ax.set_xlabel('Complexity I(X;Z)')
+        ax.set_ylabel('Accuracy I(Z;Y)')
+        ax.set_title(title)
+        ax.legend()
+
         
-        # Add some styling
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        # Style handled by pat_minimal.mplstyle
         
         plt.tight_layout()
         return fig, ax
@@ -127,41 +137,37 @@ class InformationBottleneckVisualizer:
             entropy_ax.semilogx(beta_values, entropies, 'o-', label=process_name, alpha=0.8, linewidth=2)
         
         # Style accuracy plot
-        acc_ax.set_title('Accuracy: E[log P(future|state)]', fontsize=12, fontweight='bold')
-        acc_ax.set_ylabel('Accuracy', fontsize=11)
-        acc_ax.legend(fontsize=9)
-        acc_ax.grid(True, alpha=0.3)
-        acc_ax.spines['top'].set_visible(False)
-        acc_ax.spines['right'].set_visible(False)
+        acc_ax.set_title('Accuracy: E[log P(future|state)]')
+        acc_ax.set_ylabel('Accuracy')
+        acc_ax.legend()
+
+
         
         # Style complexity plot
-        comp_ax.set_title('Complexity: I(Past; State)', fontsize=12, fontweight='bold')
-        comp_ax.set_ylabel('Complexity', fontsize=11)
-        comp_ax.legend(fontsize=9)
-        comp_ax.grid(True, alpha=0.3)
-        comp_ax.spines['top'].set_visible(False)
-        comp_ax.spines['right'].set_visible(False)
+        comp_ax.set_title('Complexity: I(Past; State)')
+        comp_ax.set_ylabel('Complexity')
+        comp_ax.legend()
+
+
         
         # Style energy plot
-        energy_ax.set_title('Energy: -E[log P(past, future)]', fontsize=12, fontweight='bold')
-        energy_ax.set_xlabel('Inverse Temperature β', fontsize=11)
-        energy_ax.set_ylabel('Energy', fontsize=11)
-        energy_ax.legend(fontsize=9)
-        energy_ax.grid(True, alpha=0.3)
-        energy_ax.spines['top'].set_visible(False)
-        energy_ax.spines['right'].set_visible(False)
+        energy_ax.set_title('Energy: -E[log P(past, future)]')
+        energy_ax.set_xlabel('Inverse Temperature β')
+        energy_ax.set_ylabel('Energy')
+        energy_ax.legend()
+
+
         
         # Style entropy plot
-        entropy_ax.set_title('Entropy: H[q(state|past)]', fontsize=12, fontweight='bold')
-        entropy_ax.set_xlabel('Inverse Temperature β', fontsize=11)
-        entropy_ax.set_ylabel('Entropy', fontsize=11)
-        entropy_ax.legend(fontsize=9)
-        entropy_ax.grid(True, alpha=0.3)
-        entropy_ax.spines['top'].set_visible(False)
-        entropy_ax.spines['right'].set_visible(False)
+        entropy_ax.set_title('Entropy: H[q(state|past)]')
+        entropy_ax.set_xlabel('Inverse Temperature β')
+        entropy_ax.set_ylabel('Entropy')
+        entropy_ax.legend()
+
+
         
         # Add main title
-        fig.suptitle(title, fontsize=16, fontweight='bold', y=0.95)
+        fig.suptitle(title)
         
         return fig, ((acc_ax, comp_ax), (energy_ax, entropy_ax))
 
@@ -181,7 +187,7 @@ class InformationBottleneckVisualizer:
             Tuple of (figure, (ax1, ax2))
         """
         if figsize is None:
-            figsize = (self.figsize_default[0], self.figsize_default[1] * 1.3)
+            figsize = self.figsize_default
         
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True, dpi=self.dpi)
         
@@ -193,19 +199,17 @@ class InformationBottleneckVisualizer:
             ax1.semilogx(beta_values, num_states, 'o-', label=process_name, alpha=0.8, linewidth=2)
             ax2.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8, linewidth=2)
         
-        ax1.set_ylabel('Number of States', fontsize=12)
-        ax1.set_title(title, fontsize=14, fontweight='bold')
-        ax1.legend(fontsize=10)
-        ax1.grid(True, alpha=0.3)
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
+        ax1.set_ylabel('Number of States')
+        ax1.set_title(title)
+        ax1.legend()
+
+
         
-        ax2.set_xlabel('Inverse Temperature β', fontsize=12)
-        ax2.set_ylabel('Free Energy', fontsize=12)
-        ax2.legend(fontsize=10)
-        ax2.grid(True, alpha=0.3)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['right'].set_visible(False)
+        ax2.set_xlabel('Inverse Temperature β')
+        ax2.set_ylabel('Free Energy')
+        ax2.legend()
+
+
         
         plt.tight_layout()
         return fig, (ax1, ax2)
@@ -235,13 +239,12 @@ class InformationBottleneckVisualizer:
             free_energies = result['free_energies']
             ax.semilogx(beta_values, free_energies, 'o-', label=process_name, alpha=0.8, linewidth=2)
         
-        ax.set_xlabel('Inverse Temperature β', fontsize=12)
-        ax.set_ylabel('Free Energy', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
-        ax.legend(fontsize=10)
-        ax.grid(True, alpha=0.3)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        ax.set_xlabel('Inverse Temperature β')
+        ax.set_ylabel('Free Energy')
+        ax.set_title(title)
+        ax.legend()
+
+
         
         plt.tight_layout()
         return fig, ax
@@ -265,7 +268,7 @@ class InformationBottleneckVisualizer:
             figsize = (12, 8)
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=figsize, dpi=self.dpi)
-        fig.suptitle(title, fontsize=16, fontweight='bold')
+        fig.suptitle(title)
         
         time_steps = results['time_steps']
         
@@ -274,9 +277,8 @@ class InformationBottleneckVisualizer:
         ax1.set_xlabel('Time Step')
         ax1.set_ylabel('Free Energy')
         ax1.set_title('Free Energy Evolution')
-        ax1.grid(True, alpha=0.3)
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
+
+
         
         # Number of states over time
         ax2.plot(time_steps, results['state_counts'], 'g-', linewidth=2)
@@ -285,27 +287,24 @@ class InformationBottleneckVisualizer:
         ax2.set_xlabel('Time Step')
         ax2.set_ylabel('Number of States')
         ax2.set_title('State Growth (red lines = splits)')
-        ax2.grid(True, alpha=0.3)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['right'].set_visible(False)
+
+
         
         # Complexity over time
         ax3.plot(time_steps, results['complexities'], 'orange', linewidth=2)
         ax3.set_xlabel('Time Step')
         ax3.set_ylabel('Complexity')
         ax3.set_title('Model Complexity')
-        ax3.grid(True, alpha=0.3)
-        ax3.spines['top'].set_visible(False)
-        ax3.spines['right'].set_visible(False)
+
+
         
         # Accuracy over time
         ax4.plot(time_steps, results['accuracies'], 'purple', linewidth=2)
         ax4.set_xlabel('Time Step')
         ax4.set_ylabel('Accuracy')
         ax4.set_title('Prediction Accuracy')
-        ax4.grid(True, alpha=0.3)
-        ax4.spines['top'].set_visible(False)
-        ax4.spines['right'].set_visible(False)
+
+
         
         plt.tight_layout()
         return fig, ((ax1, ax2), (ax3, ax4))
@@ -352,8 +351,8 @@ class InformationBottleneckVisualizer:
         ax.set_yticks(y_positions)
         ax.set_yticklabels(process_names)
         ax.set_xlabel(f'Time Step (showing first {max_length} symbols)')
-        ax.set_title('Process Sequence Comparison', fontsize=14, fontweight='bold')
-        ax.grid(True, alpha=0.3, axis='x')
+        ax.set_title('Process Sequence Comparison')
+
         ax.legend()
         
         plt.tight_layout()
@@ -409,7 +408,7 @@ class InformationBottleneckVisualizer:
             self._plot_phase_transition_energy_on_axis(batch_results, ax3)
             self._plot_complexity_comparison_on_axis(batch_results, ax4)
         
-        fig.suptitle('Information Bottleneck Analysis Dashboard', fontsize=18, fontweight='bold')
+        fig.suptitle('Information Bottleneck Analysis Dashboard')
         plt.tight_layout()
         return fig
     
@@ -424,7 +423,7 @@ class InformationBottleneckVisualizer:
         ax.set_ylabel('Accuracy I(Z;Y)')
         ax.set_title('Information Bottleneck Trade-off')
         ax.legend()
-        ax.grid(True, alpha=0.3)
+
     
     def _plot_phase_transition_states_on_axis(self, results: Dict[str, Dict], ax: plt.Axes):
         """Helper method to plot phase transition states on given axis."""
@@ -437,7 +436,7 @@ class InformationBottleneckVisualizer:
         ax.set_ylabel('Number of States')
         ax.set_title('Phase Transitions')
         ax.legend()
-        ax.grid(True, alpha=0.3)
+
     
     def _plot_phase_transition_energy_on_axis(self, results: Dict[str, Dict], ax: plt.Axes):
         """Helper method to plot phase transition energy on given axis."""
@@ -450,7 +449,7 @@ class InformationBottleneckVisualizer:
         ax.set_ylabel('Free Energy')
         ax.set_title('Free Energy Evolution')
         ax.legend()
-        ax.grid(True, alpha=0.3)
+
     
     def _plot_online_free_energy_on_axis(self, results: Dict[str, Any], ax: plt.Axes):
         """Helper method to plot online free energy on given axis."""
@@ -459,7 +458,7 @@ class InformationBottleneckVisualizer:
         ax.set_xlabel('Time Step')
         ax.set_ylabel('Free Energy')
         ax.set_title('Online Free Energy')
-        ax.grid(True, alpha=0.3)
+
     
     def _plot_online_states_on_axis(self, results: Dict[str, Any], ax: plt.Axes):
         """Helper method to plot online state growth on given axis."""
@@ -470,7 +469,7 @@ class InformationBottleneckVisualizer:
         ax.set_xlabel('Time Step')
         ax.set_ylabel('Number of States')
         ax.set_title('Online State Growth')
-        ax.grid(True, alpha=0.3)
+
     
     def _plot_complexity_comparison_on_axis(self, results: Dict[str, Dict], ax: plt.Axes):
         """Helper method to plot complexity comparison on given axis."""
@@ -480,7 +479,7 @@ class InformationBottleneckVisualizer:
         bars = ax.bar(process_names, final_complexities, alpha=0.7)
         ax.set_ylabel('Final Complexity (bits)')
         ax.set_title('Process Complexity Comparison')
-        ax.grid(True, alpha=0.3, axis='y')
+
         
         # Rotate x-axis labels if needed
         if len(process_names) > 3:

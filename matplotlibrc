@@ -1,0 +1,5 @@
+# Import custom style - use plt.style.use('styles/pat_minimal.mplstyle') in code
+# or set MPLSTYLE environment variable
+
+# Basic configuration to reference our custom style
+# The actual style loading will be done programmatically

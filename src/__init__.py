@@ -22,6 +22,13 @@ Quick Start:
     )
 """
 
+# Apply project-wide matplotlib styling
+try:
+    from .style_config import apply_project_style
+    apply_project_style()
+except ImportError:
+    pass  # Style config not available, continue with default styling
+
 # Core building blocks
 from .interfaces import (
     ProcessGenerator,
