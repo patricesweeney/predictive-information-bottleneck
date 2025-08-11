@@ -1,0 +1,10 @@
+# Core dependencies for Predictive Information Bottleneck
+numpy>=1.20.0
+matplotlib>=3.3.0
+
+# Optional dependencies
+scikit-learn>=1.0.0  # For K-means initialization in EM (optional)
+
+# Development dependencies
+jupyter>=1.0.0       # For notebook compatibility
+ipykernel>=6.0.0     # For Jupyter kernel support

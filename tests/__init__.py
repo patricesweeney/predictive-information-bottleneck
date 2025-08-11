@@ -1,0 +1,1 @@
+# Test package for predictive information bottleneck analysis
