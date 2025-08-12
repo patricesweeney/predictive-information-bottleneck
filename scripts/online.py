@@ -1,267 +1,144 @@
 """
-Online Information Bottleneck Processing
-=======================================
+Online Recursive Information Bottleneck Processing
+=================================================
 
-Consolidated online/streaming implementation using dependency injection.
-Processes symbols one at a time with adaptive state growth.
+Implementation of the online Recursive Information Bottleneck (RIB) algorithm.
+Converges to ε-machine predictive state partition as λ decreases.
+
+Uses the new RIB class that implements the proper fixed-point equations.
 """
 
-import numpy as np
-from collections import defaultdict
-from typing import Optional
+from typing import Dict, Any
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from interfaces import OnlineProcessor, AnalysisEngine, OptimizationEngine, AnalysisConfig
+from recursive_information_bottleneck import RIB
 
 
 class OnlineProcessorImpl(OnlineProcessor):
     """
-    Online information bottleneck processor using dependency injection.
+    Online Recursive Information Bottleneck processor.
+    
+    Wraps the RIB implementation to conform to the existing interface
+    while providing proper RIB functionality.
     """
     
     def __init__(self,
                  analysis_engine: AnalysisEngine,
                  optimization_engine: OptimizationEngine,
                  config: AnalysisConfig = None,
-                 inverse_temperature_beta: float = 60.0,
-                 forgetting_factor: float = 1.0,
-                 learning_rate: float = 0.05,
-                 eigenvalue_check_interval: int = 500):
+                 alphabet_size: int = 2,
+                 num_states: int = 4,
+                 tau_F: int = 1,
+                 alpha: float = 1e-3,
+                 update_interval: int = 50):
         """
-        Initialize online processor with simplified dependencies.
+        Initialize online RIB processor.
+        
+        Args:
+            analysis_engine: Analysis engine (for compatibility)
+            optimization_engine: Optimization engine (for compatibility)  
+            config: Configuration (for compatibility)
+            alphabet_size: Size of alphabet X
+            num_states: Number of states S (fixed for run)
+            tau_F: Length of future block
+            alpha: Dirichlet smoothing parameter
+            update_interval: Steps between reestimate calls
         """
         super().__init__(analysis_engine, optimization_engine, config)
         
-        self.alphabet_size = 2 ** self.config.future_window_length
-        self.inverse_temperature_beta = inverse_temperature_beta
-        self.forgetting_factor = forgetting_factor
-        self.learning_rate = learning_rate
-        self.eigenvalue_check_interval = eigenvalue_check_interval
+        # Initialize RIB algorithm
+        self.rib = RIB(
+            alphabet_size=alphabet_size,
+            num_states=num_states,
+            tau_F=tau_F,
+            alpha=alpha,
+            update_interval=update_interval,
+            seed=self.config.random_seed
+        )
         
-        # Initialize state
-        self.reset()
+        # Compatibility fields
+        self.alphabet_size = alphabet_size
+        self.num_states = num_states
+        
+        # Tracking for analysis
+        self.sequence_log = []
+        self.state_log = []
+        self.objective_log = []
     
     def reset(self):
         """Reset online learning state."""
-        np.random.seed(self.config.random_seed)
+        # Reset the underlying RIB algorithm
+        self.rib = RIB(
+            alphabet_size=self.alphabet_size,
+            num_states=self.num_states,
+            tau_F=self.rib.tau_F,
+            alpha=self.rib.alpha,
+            update_interval=self.rib.update_interval,
+            seed=self.config.random_seed
+        )
         
-        # Empirical probability tracking
-        self.symbol_counts = defaultdict(lambda: np.zeros(self.alphabet_size, float))
-        self.context_totals = defaultdict(float)
-        
-        # Model parameters - start with single state
-        self.emission_probabilities = np.full((1, self.alphabet_size), 1.0 / self.alphabet_size)
-        self.posterior_distribution = None
-        
-        # Sliding window for past context
-        self.past_context_buffer = []
-        
-        # Logging for analysis
-        self.time_step = 0
-        self.free_energy_log = []
-        self.complexity_log = []
-        self.accuracy_log = []
-        self.state_count_log = []
-        self.split_log = []
+        # Clear logs
+        self.sequence_log = []
+        self.state_log = []
+        self.objective_log = []
     
-    def convert_window_to_index(self, window):
-        """Convert binary window to integer index."""
-        return int(''.join(map(str, window)), 2)
+    def process_symbol(self, new_symbol: int, run_log=None):
+        """Process a single new symbol using RIB algorithm."""
+        # Log the symbol
+        self.sequence_log.append(new_symbol)
+        
+        # Process through RIB with optional run logging
+        state = self.rib.partial_fit(new_symbol, run_log=run_log)
+        
+        # Log the assigned state
+        self.state_log.append(state)
+        
+        # Log objective every 100 steps
+        if len(self.sequence_log) % 100 == 0:
+            obj = self.rib.objective()
+            self.objective_log.append(obj)
+        
+        return state
     
-    def update_empirical_probabilities(self, past_context_index, future_symbol):
-        """Update empirical probability estimates with new observation."""
-        # Apply forgetting to existing counts
-        self.symbol_counts[past_context_index] *= self.forgetting_factor
-        self.context_totals[past_context_index] *= self.forgetting_factor
-        
-        # Add new observation
-        self.symbol_counts[past_context_index][future_symbol] += 1.0
-        self.context_totals[past_context_index] += 1.0
+    def get_rib_analysis_results(self) -> Dict[str, Any]:
+        """Get RIB-specific analysis results."""
+        return {
+            'sequence_length': len(self.sequence_log),
+            'unique_states': len(set(self.state_log)) if self.state_log else 0,
+            'active_states': self.rib._count_active_states(),
+            'current_lambda': self.rib._get_current_lambda(),
+            'objective_history': self.objective_log,
+            'state_sequence': self.state_log[-100:],  # Last 100 states
+            'debug_info': self.rib.get_debug_info()
+        }
     
-    def compute_current_empirical_distributions(self):
-        """Compute current empirical P(future|past) and P(past) from accumulated counts."""
-        # Get all observed past contexts
-        observed_past_indices = sorted(self.context_totals.keys())
-        
-        if not observed_past_indices:
-            return [], np.array([]), np.array([]).reshape(0, self.alphabet_size)
-        
-        # Marginal probabilities P(past)
-        total_counts = sum(self.context_totals.values())
-        past_probabilities = np.array([
-            self.context_totals[idx] / total_counts for idx in observed_past_indices
-        ])
-        
-        # Conditional probabilities P(future|past)
-        future_conditional_probabilities = np.array([
-            self.symbol_counts[idx] / max(self.context_totals[idx], 1e-10)
-            for idx in observed_past_indices
-        ])
-        
-        return observed_past_indices, past_probabilities, future_conditional_probabilities
-    
-    def process_symbol(self, new_symbol: int):
-        """Process a single new symbol."""
-        # Add to context buffer
-        self.past_context_buffer.append(new_symbol)
-        if len(self.past_context_buffer) > self.config.past_window_length + self.config.future_window_length:
-            self.past_context_buffer.pop(0)
-        
-        # Check if we have enough context
-        if len(self.past_context_buffer) < self.config.past_window_length + self.config.future_window_length:
-            self.time_step += 1
-            return
-        
-        # Extract past context and future window
-        past_context = self.past_context_buffer[:self.config.past_window_length]
-        future_window = self.past_context_buffer[self.config.past_window_length:]
-        
-        # Convert to indices
-        past_context_index = self.convert_window_to_index(past_context)
-        future_symbol = self.convert_window_to_index(future_window)
-        
-        # Update empirical probabilities
-        self.update_empirical_probabilities(past_context_index, future_symbol)
-        
-        # Update model parameters with gradient step
-        self._update_model_parameters()
-        
-        # Periodic state splitting check
-        if self.time_step % self.eigenvalue_check_interval == 0:
-            self._check_for_state_splits()
-        
-        # Log metrics
-        self._log_current_metrics()
-        
-        self.time_step += 1
-    
-    def _update_model_parameters(self):
-        """Update model parameters using gradient descent."""
-        # Get current empirical distributions
-        past_indices, past_probs, future_conditional = self.compute_current_empirical_distributions()
-        
-        if len(past_indices) == 0:
-            return
-        
-        # Initialize posterior if needed
-        if self.posterior_distribution is None:
-            num_contexts = len(past_indices)
-            num_states = self.emission_probabilities.shape[0]
-            self.posterior_distribution = np.full((num_contexts, num_states), 1.0 / num_states)
-        
-        # Simple gradient update (simplified for brevity)
-        # In practice, this would be a full EM step
-        try:
-            # Update emission probabilities based on posterior and data
-            for state_idx in range(self.emission_probabilities.shape[0]):
-                weighted_counts = np.zeros(self.alphabet_size)
-                total_weight = 0.0
-                
-                for ctx_idx, past_idx in enumerate(past_indices):
-                    weight = past_probs[ctx_idx] * self.posterior_distribution[ctx_idx, state_idx]
-                    weighted_counts += weight * future_conditional[ctx_idx]
-                    total_weight += weight
-                
-                if total_weight > 1e-10:
-                    self.emission_probabilities[state_idx] = weighted_counts / total_weight
-            
-            # Normalize emission probabilities
-            row_sums = self.emission_probabilities.sum(axis=1, keepdims=True)
-            self.emission_probabilities = self.emission_probabilities / np.maximum(row_sums, 1e-10)
-            
-        except Exception:
-            # Fallback to uniform if numerical issues
-            self.emission_probabilities.fill(1.0 / self.alphabet_size)
-    
-    def _check_for_state_splits(self):
-        """Check if any states should be split."""
-        if self.emission_probabilities.shape[0] >= self.config.maximum_states_allowed:
-            return
-        
-        # Get current empirical distributions
-        past_indices, past_probs, future_conditional = self.compute_current_empirical_distributions()
-        
-        if len(past_indices) == 0:
-            return
-        
-        try:
-            # Attempt state split using injected splitter
-            current_free_energy = self._compute_current_free_energy(past_probs, future_conditional)
-            
-            new_posterior, new_emission, new_free_energy, split_occurred = self.optimization_engine.attempt_state_split(
-                past_probs,
-                future_conditional,
-                self.inverse_temperature_beta,
-                self.posterior_distribution,
-                self.emission_probabilities,
-                current_free_energy
-            )
-            
-            if split_occurred:
-                self.posterior_distribution = new_posterior
-                self.emission_probabilities = new_emission
-                self.split_log.append(self.time_step)
-                print(f"State split at step {self.time_step}: {self.emission_probabilities.shape[0]} states")
-        
-        except Exception:
-            # Continue if splitting fails
-            pass
-    
-    def _compute_current_free_energy(self, past_probs, future_conditional):
-        """Compute current free energy."""
-        try:
-            free_energy, _, _, _, _ = self.analysis_engine.compute_variational_free_energy(
-                past_probs,
-                self.posterior_distribution,
-                self.emission_probabilities,
-                self.inverse_temperature_beta,
-                future_conditional
-            )
-            return free_energy
-        except Exception:
-            return float('inf')
-    
-    def _log_current_metrics(self):
-        """Log current metrics for analysis."""
-        if self.time_step % 100 == 0:  # Log every 100 steps
-            # Get current empirical distributions
-            past_indices, past_probs, future_conditional = self.compute_current_empirical_distributions()
-            
-            if len(past_indices) > 0:
-                try:
-                    free_energy = self._compute_current_free_energy(past_probs, future_conditional)
-                    self.free_energy_log.append(free_energy)
-                    
-                    # Compute complexity and accuracy
-                    num_states = self.emission_probabilities.shape[0]
-                    self.state_count_log.append(num_states)
-                    
-                    # Simple complexity estimate
-                    complexity = np.log(num_states)
-                    self.complexity_log.append(complexity)
-                    
-                    # Simple accuracy estimate (mutual information)
-                    mutual_info = self.analysis_engine.compute_empirical_mutual_information(
-                        past_probs, future_conditional
-                    )
-                    self.accuracy_log.append(mutual_info)
-                    
-                except Exception:
-                    pass
+    def get_predictive_distributions(self) -> Dict[int, Dict]:
+        """Get predictive distributions for all states."""
+        result = {}
+        for s in range(self.rib.num_states):
+            try:
+                result[s] = self.rib.predictive_dist(s)
+            except Exception:
+                result[s] = {}
+        return result
     
     def get_analysis_results(self):
-        """Get current analysis results."""
+        """Get current analysis results (compatibility method)."""
+        rib_results = self.get_rib_analysis_results()
+        
+        # Convert to old format for compatibility
         return {
-            'time_steps': list(range(0, len(self.free_energy_log) * 100, 100)),
-            'free_energies': self.free_energy_log,
-            'complexities': self.complexity_log,
-            'accuracies': self.accuracy_log,
-            'state_counts': self.state_count_log,
-            'split_times': self.split_log,
-            'current_num_states': self.emission_probabilities.shape[0],
-            'total_contexts': len(self.context_totals)
+            'time_steps': list(range(0, len(self.objective_log) * 100, 100)),
+            'free_energies': [obj.get('J', 0) for obj in self.objective_log],
+            'complexities': [obj.get('I_s_past', 0) for obj in self.objective_log],
+            'accuracies': [obj.get('I_s_future', 0) for obj in self.objective_log],
+            'state_counts': [rib_results['active_states']] * len(self.objective_log),
+            'split_times': [],  # RIB doesn't do dynamic splitting
+            'current_num_states': rib_results['active_states'],
+            'total_contexts': rib_results['sequence_length']
         }
     
     def create_online_analysis_plot(self):
@@ -272,46 +149,113 @@ class OnlineProcessorImpl(OnlineProcessor):
         return create_online_analysis_plot(results)
 
 
-# Convenience function for quick online analysis
-def run_online_analysis(process_generator, 
-                       sequence_length: int = 10000,
-                       process_name: str = "Unknown"):
+# Convenience function for RIB analysis
+def run_rib_analysis(process_generator, 
+                     sequence_length: int = 10000,
+                     process_name: str = "Unknown",
+                     alphabet_size: int = 2,
+                     num_states: int = 4,
+                     tau_F: int = 1,
+                     create_report: bool = False,
+                     outdir: str = "results/rib_reports"):
     """
-    Convenience function to run online analysis with standard implementations.
+    Convenience function to run RIB analysis with optional visualization.
     """
-    from interfaces import create_online_processor
     
-    # Create processor with simplified dependencies
-    processor = create_online_processor()
+    # Create processor with RIB parameters
+    analysis_engine = None
+    optimization_engine = None
+    config = AnalysisConfig(random_seed=42)
+    
+    processor = OnlineProcessorImpl(
+        analysis_engine=analysis_engine,
+        optimization_engine=optimization_engine,
+        config=config,
+        alphabet_size=alphabet_size,
+        num_states=num_states,
+        tau_F=tau_F
+    )
+    
+    # Create run log for visualization
+    run_log = None
+    if create_report:
+        from rib_plots import RIBRunLog
+        run_log = RIBRunLog()
     
     # Generate sequence and process
     sequence = process_generator(sequence_length, seed=42)
     
-    print(f"Processing {sequence_length} symbols from {process_name}...")
-    for symbol in sequence:
-        processor.process_symbol(symbol)
+    print(f"Processing {sequence_length} symbols from {process_name} with RIB...")
+    print(f"Parameters: alphabet_size={alphabet_size}, num_states={num_states}, tau_F={tau_F}")
     
-    results = processor.get_analysis_results()
-    print(f"Final model: {results['current_num_states']} states, {results['total_contexts']} contexts")
+    for i, symbol in enumerate(sequence):
+        state = processor.process_symbol(symbol, run_log=run_log)
+        
+        # Print progress
+        if i % 1000 == 0 and i > 0:
+            rib_results = processor.get_rib_analysis_results()
+            print(f"Step {i}: λ={rib_results['current_lambda']:.4f}, "
+                  f"active_states={rib_results['active_states']}, "
+                  f"current_state={state}")
     
-    return processor, results
+    # Final checkpoint
+    if run_log is not None:
+        final_lambda = processor.rib._get_current_lambda()
+        run_log.log_checkpoint(processor.rib.step_count, processor.rib, 
+                             final_lambda, "final")
+    
+    # Final results
+    rib_results = processor.get_rib_analysis_results()
+    print("\nFinal RIB model:")
+    print(f"  Active states: {rib_results['active_states']}/{num_states}")
+    print(f"  Final λ: {rib_results['current_lambda']:.4f}")
+    print(f"  Sequence length: {rib_results['sequence_length']}")
+    
+    # Show final objective
+    if rib_results['objective_history']:
+        final_obj = rib_results['objective_history'][-1]
+        print(f"  Final objective: J={final_obj['J']:.4f}")
+        print(f"  I(s;future)={final_obj['I_s_future']:.4f}")
+        print(f"  I(s;past)={final_obj['I_s_past']:.4f}")
+    
+    # Generate visualization report
+    if create_report and run_log is not None:
+        print(f"\nGenerating visualization report...")
+        from rib_plots import make_report
+        make_report(run_log, outdir, process_name)
+        print(f"Report saved to {outdir}")
+    
+    return processor, rib_results, run_log
+
+
+# Backwards compatibility
+def run_online_analysis(process_generator, 
+                       sequence_length: int = 10000,
+                       process_name: str = "Unknown"):
+    """Backwards compatibility wrapper."""
+    return run_rib_analysis(process_generator, sequence_length, process_name)
 
 
 if __name__ == "__main__":
-    # Run demo online analysis
+    # Run demo RIB analysis with visualization
     from processes import PROCESS_GENERATORS
     
-    print("Running online information bottleneck analysis...")
-    processor, results = run_online_analysis(
+    print("Running Recursive Information Bottleneck (RIB) analysis...")
+    processor, results, run_log = run_rib_analysis(
         PROCESS_GENERATORS["Golden-Mean"], 
-        sequence_length=5000,
-        process_name="Golden-Mean"
+        sequence_length=3000,
+        process_name="Golden-Mean",
+        alphabet_size=2,
+        num_states=4,
+        tau_F=1,
+        create_report=True,
+        outdir="results/rib_reports/golden_mean"
     )
     
-    # Create plots
-    processor.create_online_analysis_plot()
+    print("\nPredictive distributions:")
+    pred_dists = processor.get_predictive_distributions()
+    for state, dist in pred_dists.items():
+        if dist:  # Only show non-empty distributions
+            print(f"  State {state}: {dist}")
     
-    from visualization import show_all_plots
-    show_all_plots()
-    
-    print("Online analysis complete!")
+    print("\nRIB analysis complete!")

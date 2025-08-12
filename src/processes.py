@@ -176,6 +176,58 @@ def create_thue_morse_process():
     return generate_sequence
 
 
+def create_three_state_hmm(trans_matrix=None, emission_matrix=None):
+    """
+    Factory for 3-state Hidden Markov Model with unequal emission profiles.
+    
+    Default configuration creates 3 distinct emission profiles to test multi-split behavior.
+    Memory complexity: Cμ = log₂(3) ≈ 1.58 bits
+    
+    Args:
+        trans_matrix: 3x3 transition matrix. If None, uses balanced default.
+        emission_matrix: 3x2 emission matrix (3 states, 2 symbols). If None, uses distinct profiles.
+    
+    Returns:
+        Generator function that produces 3-state HMM sequences
+    """
+    if trans_matrix is None:
+        # Balanced transition matrix with some persistence
+        trans_matrix = np.array([
+            [0.6, 0.2, 0.2],  # State 0: tends to stay
+            [0.3, 0.4, 0.3],  # State 1: moderate mixing  
+            [0.1, 0.3, 0.6]   # State 2: tends to stay
+        ])
+    
+    if emission_matrix is None:
+        # Distinct emission profiles for clear separation
+        emission_matrix = np.array([
+            [0.9, 0.1],  # State 0: strongly prefers symbol 0
+            [0.5, 0.5],  # State 1: uniform emission
+            [0.2, 0.8]   # State 2: strongly prefers symbol 1
+        ])
+    
+    def generate_sequence(length, *, seed=0):
+        rng = create_random_number_generator(seed)
+        sequence = np.empty(length, int)
+        
+        # Random initial state
+        current_state = rng.integers(3)
+        
+        for time_step in range(length):
+            # Emit symbol based on current state
+            emission_probs = emission_matrix[current_state]
+            sequence[time_step] = rng.choice([0, 1], p=emission_probs)
+            
+            # Transition to next state
+            transition_probs = trans_matrix[current_state]
+            current_state = rng.choice([0, 1, 2], p=transition_probs)
+        
+        return sequence
+    
+    generate_sequence.__name__ = "3-state HMM"
+    return generate_sequence
+
+
 # Factory dictionary for easy access to all processes
 PROCESS_GENERATORS = {
     # Zero/low complexity processes
@@ -186,6 +238,9 @@ PROCESS_GENERATORS = {
     # Sofic / finite-state epsilon-machines
     "Golden-Mean": create_golden_mean_process(),
     "Even": create_even_process(),
+    
+    # Multi-state HMM for testing multi-split
+    "3-state HMM": create_three_state_hmm(),
     
     # High / unbounded complexity processes
     "Thue-Morse": create_thue_morse_process(),
